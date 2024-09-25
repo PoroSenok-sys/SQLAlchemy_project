@@ -2,8 +2,8 @@ import datetime
 import enum
 from typing import Annotated
 
-from sqlalchemy import MetaData, Table, Column, Integer, String, ForeignKey, text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import MetaData, Table, Column, Integer, String, ForeignKey, text, Index, CheckConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship, backref
 
 from src.database import Base, str_256
 
@@ -21,7 +21,15 @@ class WorkersOrm(Base):
     id: Mapped[type_intpk]
     username: Mapped[str_256]
 
-    resumes: Mapped[list["ResumesOrm"]] = relationship()
+    resumes: Mapped[list["ResumesOrm"]] = relationship(
+        back_populates="worker",
+    )
+
+    resumes_parttime: Mapped[list["ResumesOrm"]] = relationship(
+        back_populates="worker",
+        primaryjoin="and_(WorkersOrm.id == ResumesOrm.worker_id, ResumesOrm.workload == 'parttime')",
+        order_by="ResumesOrm.id.desc()",
+    )
 
 
 class Workload(enum.Enum):
@@ -40,7 +48,17 @@ class ResumesOrm(Base):
     created_at: Mapped[type_created_at]
     updated_at: Mapped[type_updated_at]
 
-    worker: Mapped["WorkersOrm"] = relationship()
+    worker: Mapped["WorkersOrm"] = relationship(
+        back_populates="resumes",
+    )
+
+    repr_cols_num = 2
+    repr_cols = ("created_at", )
+
+    __table_args__ = (
+        Index("title_index", "title"),
+        CheckConstraint("compensation > 0", name="check_compensation_positive"),
+    )
 
 
 
